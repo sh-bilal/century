@@ -5,21 +5,29 @@ import { useToast } from "@/hooks/use-toast";
 import { Card } from "./Card";
 import { PlayerHand } from "./PlayerHand";
 import { ScoreBoard } from "./ScoreBoard";
-import { calculateHandScore, validatePair, validateSequence } from "@/lib/game";
+import { calculateHandScore, validatePair, validateSequence, createDeck } from "@/lib/game";
 
 interface GameBoardProps {
   gameState: GameState;
   onUpdateGame: (newState: GameState) => void;
 }
 
+const suits = ["hearts", "diamonds", "clubs", "spades"];
+const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+
+
 export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
   const { toast } = useToast();
   const [selectedCards, setSelectedCards] = useState<CardType[]>([]);
+  const [roundEnded, setRoundEnded] = useState(false);
+  const [needsToDraw, setNeedsToDraw] = useState(false);
 
   const currentPlayer = gameState.players[gameState.currentTurn];
   const currentPlayerHand = currentPlayer.hand;
 
   const handleCardClick = (card: CardType) => {
+    if (roundEnded || needsToDraw) return;
+
     setSelectedCards(prev => {
       const exists = prev.some(c => c.suit === card.suit && c.value === card.value);
       if (exists) {
@@ -30,6 +38,8 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
   };
 
   const handleDiscard = () => {
+    if (roundEnded) return;
+
     if (selectedCards.length === 0) {
       toast({ title: "Select cards to discard" });
       return;
@@ -54,14 +64,25 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
 
     newState.discardPile.push(...selectedCards);
     setSelectedCards([]);
-    newState.currentTurn = (newState.currentTurn + 1) % newState.players.length;
+    setNeedsToDraw(true);
 
     onUpdateGame(newState);
   };
 
   const handleDraw = (fromDiscard: boolean) => {
+    if (roundEnded || !needsToDraw) return;
+
     const newState = { ...gameState };
     const currentPlayer = newState.players[newState.currentTurn];
+
+    // Check if hand would exceed 4 cards
+    if (currentPlayer.hand.length >= 4) {
+      toast({ 
+        title: "Hand full",
+        description: "You cannot have more than 4 cards"
+      });
+      return;
+    }
 
     if (fromDiscard) {
       const card = newState.discardPile.pop();
@@ -71,10 +92,14 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
       if (card) currentPlayer.hand.push(card);
     }
 
+    setNeedsToDraw(false);
+    newState.currentTurn = (newState.currentTurn + 1) % newState.players.length;
     onUpdateGame(newState);
   };
 
   const handleShow = () => {
+    if (roundEnded) return;
+
     const handScore = calculateHandScore(currentPlayerHand);
     if (handScore > 5) {
       toast({ 
@@ -101,6 +126,28 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
       newState.gameOver = true;
     }
 
+    setRoundEnded(true);
+    onUpdateGame(newState);
+  };
+
+  const handleResetRound = () => {
+    const newState = { ...gameState };
+    // Reset hands and create a new deck
+    const deck = createDeck();
+
+    newState.players.forEach(player => {
+      player.hand = deck.splice(0, 4);
+    });
+
+    newState.drawPile = deck;
+    newState.discardPile = [deck.splice(0, 1)[0]];
+    newState.currentTurn = 0;
+    newState.gameOver = false;
+
+    setRoundEnded(false);
+    setNeedsToDraw(false);
+    setSelectedCards([]);
+
     onUpdateGame(newState);
   };
 
@@ -116,37 +163,52 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex justify-between items-center mb-6">
           <div className="flex gap-4">
-            <Button
-              onClick={() => handleDraw(false)}
-              disabled={gameState.drawPile.length === 0}
-              className="bg-primary hover:bg-primary/90"
-            >
-              Draw Card
-            </Button>
-            <Button
-              onClick={() => handleDraw(true)}
-              disabled={gameState.discardPile.length === 0}
-              variant="outline"
-              className="border-primary text-primary hover:bg-primary/10"
-            >
-              Take from Discard
-            </Button>
+            {needsToDraw ? (
+              <>
+                <Button
+                  onClick={() => handleDraw(false)}
+                  disabled={gameState.drawPile.length === 0}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  Draw Card
+                </Button>
+                <Button
+                  onClick={() => handleDraw(true)}
+                  disabled={gameState.discardPile.length === 0}
+                  variant="outline"
+                  className="border-primary text-primary hover:bg-primary/10"
+                >
+                  Take from Discard
+                </Button>
+              </>
+            ) : (
+              <Button 
+                onClick={handleDiscard}
+                disabled={selectedCards.length === 0 || roundEnded}
+                variant="secondary"
+              >
+                Discard Selected
+              </Button>
+            )}
           </div>
 
           <div className="flex gap-4">
-            <Button 
-              onClick={handleDiscard}
-              disabled={selectedCards.length === 0}
-              variant="secondary"
-            >
-              Discard Selected
-            </Button>
-            <Button
-              onClick={handleShow}
-              variant="destructive"
-            >
-              Show ({calculateHandScore(currentPlayerHand)})
-            </Button>
+            {roundEnded ? (
+              <Button
+                onClick={handleResetRound}
+                className="bg-primary hover:bg-primary/90"
+              >
+                Start New Round
+              </Button>
+            ) : (
+              <Button
+                onClick={handleShow}
+                variant="destructive"
+                disabled={needsToDraw}
+              >
+                Show ({calculateHandScore(currentPlayerHand)})
+              </Button>
+            )}
           </div>
         </div>
 
@@ -171,7 +233,7 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
         </div>
 
         <div>
-          <h2 className="text-xl font-bold mb-4">Your Hand</h2>
+          <h2 className="text-xl font-bold mb-4">Your Hand {needsToDraw && "(Draw a card to continue)"}</h2>
           <PlayerHand
             cards={currentPlayerHand}
             selectedCards={selectedCards}
