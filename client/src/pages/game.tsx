@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { GameBoard } from "@/components/game/GameBoard";
+import { PlayerSelection } from "@/components/game/PlayerSelection";
 import { apiRequest } from "@/lib/queryClient";
 import { createInitialGameState } from "@/lib/game";
 import { type GameState } from "@shared/schema";
@@ -9,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GamePage() {
   const [gameId, setGameId] = useState<string | null>(null);
+  const [playerCount, setPlayerCount] = useState<number | null>(null);
 
   const { data: gameState, isLoading: isLoadingGame } = useQuery<GameState>({
     queryKey: [`/api/games/${gameId}`],
@@ -29,15 +31,28 @@ export default function GamePage() {
 
   useEffect(() => {
     const initializeGame = async () => {
-      if (!gameId && !createGameMutation.isPending) {
+      if (!gameId && !createGameMutation.isPending && playerCount) {
         console.log("Initializing new game...");
-        const initialState = createInitialGameState(["Player 1", "Player 2"]);
+        const playerNames = Array.from(
+          { length: playerCount },
+          (_, i) => `Player ${i + 1}`
+        );
+        const initialState = createInitialGameState(playerNames);
         await createGameMutation.mutateAsync(initialState);
       }
     };
 
     initializeGame().catch(console.error);
-  }, [gameId, createGameMutation]);
+  }, [gameId, createGameMutation, playerCount]);
+
+  // Show player selection if game hasn't started
+  if (!playerCount) {
+    return (
+      <PlayerSelection
+        onStart={(count) => setPlayerCount(count)}
+      />
+    );
+  }
 
   if (!gameId || isLoadingGame || createGameMutation.isPending) {
     return (
