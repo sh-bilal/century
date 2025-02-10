@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { GameBoard } from "@/components/game/GameBoard";
 import { apiRequest } from "@/lib/queryClient";
@@ -8,35 +8,40 @@ import { queryClient } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GamePage() {
-  const gameId = "test-game"; // In a real app, this would come from URL/state
+  const [gameId, setGameId] = useState<string | null>(null);
 
   const { data: gameState, isLoading: isLoadingGame } = useQuery<GameState>({
-    queryKey: ["/api/games", gameId],
+    queryKey: [`/api/games/${gameId}`],
+    enabled: !!gameId,
   });
 
   const createGameMutation = useMutation({
     mutationFn: async (initialState: GameState) => {
-      await apiRequest("POST", "/api/games", initialState);
+      const response = await apiRequest("POST", "/api/games", initialState);
+      const data = await response.json();
+      return data as GameState;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/games", gameId] });
+    onSuccess: (data) => {
+      setGameId(data.id);
+      queryClient.invalidateQueries({ queryKey: [`/api/games/${data.id}`] });
     },
   });
 
   useEffect(() => {
     const initializeGame = async () => {
-      if (!gameState && !createGameMutation.isPending) {
+      if (!gameId && !createGameMutation.isPending) {
+        console.log("Initializing new game...");
         const initialState = createInitialGameState(["Player 1", "Player 2"]);
         await createGameMutation.mutateAsync(initialState);
       }
     };
 
-    initializeGame();
-  }, [gameState, createGameMutation]);
+    initializeGame().catch(console.error);
+  }, [gameId, createGameMutation]);
 
-  if (isLoadingGame || createGameMutation.isPending) {
+  if (!gameId || isLoadingGame || createGameMutation.isPending) {
     return (
-      <div className="min-h-screen bg-background p-8">
+      <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-4xl mx-auto space-y-8">
           <Skeleton className="h-32 w-full" />
           <div className="flex justify-between">
@@ -54,17 +59,28 @@ export default function GamePage() {
   }
 
   if (!gameState) {
-    return <div>Error loading game</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900">Error Loading Game</h1>
+          <p className="mt-2 text-gray-600">Unable to initialize the game state.</p>
+        </div>
+      </div>
+    );
   }
 
+  console.log("Current game state:", gameState);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <GameBoard
         gameState={gameState}
         onUpdateGame={(newState) => {
+          if (!gameId) return;
+
           apiRequest("PUT", `/api/games/${gameId}`, newState)
             .then(() => {
-              queryClient.invalidateQueries({ queryKey: ["/api/games", gameId] });
+              queryClient.invalidateQueries({ queryKey: [`/api/games/${gameId}`] });
             })
             .catch((error) => {
               console.error("Failed to update game:", error);
