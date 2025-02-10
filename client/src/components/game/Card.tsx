@@ -9,7 +9,7 @@ interface CardProps {
 
 export function Card({ card, selected, onClick }: CardProps) {
   const { suit, value } = card;
-  
+
   const suitSymbol = {
     hearts: "♥",
     diamonds: "♦",
@@ -30,23 +30,51 @@ export function Card({ card, selected, onClick }: CardProps) {
     <div
       onClick={onClick}
       className={cn(
-        "w-20 h-32 bg-white rounded-lg border-2 shadow-md cursor-pointer transition-transform hover:scale-105",
-        "flex flex-col items-center justify-center p-2",
-        selected && "border-primary",
-        !selected && "border-gray-200"
+        "w-24 h-36 bg-white rounded-xl shadow-lg cursor-pointer transition-all duration-200",
+        "flex flex-col items-center justify-between p-3 relative hover:scale-105",
+        "border-2",
+        selected ? "border-primary ring-2 ring-primary/50" : "border-gray-200",
+        onClick && "hover:border-primary/50"
       )}
     >
-      <div className={cn(
-        "text-2xl font-bold",
-        isRed ? "text-red-500" : "text-gray-900"
-      )}>
-        {displayValue}
+      {/* Top left value and suit */}
+      <div className="absolute top-2 left-2 flex flex-col items-start">
+        <span className={cn(
+          "text-lg font-bold",
+          isRed ? "text-red-500" : "text-gray-900"
+        )}>
+          {displayValue}
+        </span>
+        <span className={cn(
+          "text-xl",
+          isRed ? "text-red-500" : "text-gray-900"
+        )}>
+          {suitSymbol}
+        </span>
       </div>
+
+      {/* Center suit */}
       <div className={cn(
-        "text-4xl",
+        "text-5xl absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2",
         isRed ? "text-red-500" : "text-gray-900"
       )}>
         {suitSymbol}
+      </div>
+
+      {/* Bottom right value and suit (inverted) */}
+      <div className="absolute bottom-2 right-2 flex flex-col items-end rotate-180">
+        <span className={cn(
+          "text-lg font-bold",
+          isRed ? "text-red-500" : "text-gray-900"
+        )}>
+          {displayValue}
+        </span>
+        <span className={cn(
+          "text-xl",
+          isRed ? "text-red-500" : "text-gray-900"
+        )}>
+          {suitSymbol}
+        </span>
       </div>
     </div>
   );

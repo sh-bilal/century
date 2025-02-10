@@ -9,7 +9,7 @@ interface PlayerHandProps {
 
 export function PlayerHand({ cards, selectedCards, onCardClick }: PlayerHandProps) {
   return (
-    <div className="flex gap-4 p-4 min-h-[200px] bg-gray-100 rounded-lg">
+    <div className="flex flex-wrap gap-4 p-6 min-h-[200px] bg-gray-50 rounded-xl border-2 border-gray-100">
       {cards.map((card, i) => (
         <Card
           key={`${card.suit}-${card.value}`}

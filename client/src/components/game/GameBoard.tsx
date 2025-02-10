@@ -15,7 +15,7 @@ interface GameBoardProps {
 export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
   const { toast } = useToast();
   const [selectedCards, setSelectedCards] = useState<CardType[]>([]);
-  
+
   const currentPlayer = gameState.players[gameState.currentTurn];
   const currentPlayerHand = currentPlayer.hand;
 
@@ -37,27 +37,25 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
 
     if (selectedCards.length > 1) {
       if (!validatePair(selectedCards) && !validateSequence(selectedCards)) {
-        toast({ title: "Invalid selection for multiple cards" });
+        toast({ 
+          title: "Invalid selection",
+          description: "Multiple cards must form a pair or sequence"
+        });
         return;
       }
     }
 
     const newState = { ...gameState };
     const currentPlayer = newState.players[newState.currentTurn];
-    
-    // Remove selected cards from hand
+
     currentPlayer.hand = currentPlayer.hand.filter(card => 
       !selectedCards.some(sc => sc.suit === card.suit && sc.value === card.value)
     );
-    
-    // Add to discard pile
+
     newState.discardPile.push(...selectedCards);
-    
     setSelectedCards([]);
-    
-    // Next turn
     newState.currentTurn = (newState.currentTurn + 1) % newState.players.length;
-    
+
     onUpdateGame(newState);
   };
 
@@ -79,7 +77,10 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
   const handleShow = () => {
     const handScore = calculateHandScore(currentPlayerHand);
     if (handScore > 5) {
-      toast({ title: "Can only show with score of 5 or less" });
+      toast({ 
+        title: "Cannot show yet",
+        description: "Your hand score must be 5 or less"
+      });
       return;
     }
 
@@ -90,7 +91,10 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
 
     if (handScore > lowestScore) {
       currentPlayer.score += 30;
-      toast({ title: "Penalty! Someone had a lower score" });
+      toast({ 
+        title: "Penalty!",
+        description: "Someone had a lower score - 30 points added"
+      });
     }
 
     if (currentPlayer.score >= 100) {
@@ -101,65 +105,79 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-8">
-      <ScoreBoard 
-        players={gameState.players}
-        currentTurn={gameState.currentTurn}
-      />
-      
-      <div className="flex justify-between items-center">
-        <div className="flex gap-4">
-          <Button
-            onClick={() => handleDraw(false)}
-            disabled={gameState.drawPile.length === 0}
-          >
-            Draw Card
-          </Button>
-          <Button
-            onClick={() => handleDraw(true)}
-            disabled={gameState.discardPile.length === 0}
-          >
-            Take from Discard
-          </Button>
-        </div>
-        
-        <div className="flex gap-4">
-          <Button 
-            onClick={handleDiscard}
-            disabled={selectedCards.length === 0}
-          >
-            Discard Selected
-          </Button>
-          <Button
-            onClick={handleShow}
-            variant="destructive"
-          >
-            Show
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex gap-8">
-        <div className="w-20">
-          <div className="text-center mb-2">Draw</div>
-          <div className="bg-gray-200 w-20 h-32 rounded-lg" />
-        </div>
-        
-        <div className="w-20">
-          <div className="text-center mb-2">Discard</div>
-          {gameState.discardPile.length > 0 && (
-            <Card card={gameState.discardPile[gameState.discardPile.length - 1]} />
-          )}
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-xl font-bold mb-4">Your Hand</h2>
-        <PlayerHand
-          cards={currentPlayerHand}
-          selectedCards={selectedCards}
-          onCardClick={handleCardClick}
+    <div className="max-w-5xl mx-auto p-6 space-y-8">
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <ScoreBoard 
+          players={gameState.players}
+          currentTurn={gameState.currentTurn}
         />
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex gap-4">
+            <Button
+              onClick={() => handleDraw(false)}
+              disabled={gameState.drawPile.length === 0}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Draw Card
+            </Button>
+            <Button
+              onClick={() => handleDraw(true)}
+              disabled={gameState.discardPile.length === 0}
+              variant="outline"
+              className="border-primary text-primary hover:bg-primary/10"
+            >
+              Take from Discard
+            </Button>
+          </div>
+
+          <div className="flex gap-4">
+            <Button 
+              onClick={handleDiscard}
+              disabled={selectedCards.length === 0}
+              variant="secondary"
+            >
+              Discard Selected
+            </Button>
+            <Button
+              onClick={handleShow}
+              variant="destructive"
+            >
+              Show ({calculateHandScore(currentPlayerHand)})
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex gap-8 justify-center mb-8">
+          <div className="text-center">
+            <div className="text-sm font-medium text-gray-500 mb-2">Draw Pile</div>
+            <div className="bg-gray-100 w-24 h-36 rounded-xl shadow-inner flex items-center justify-center border-2 border-dashed border-gray-300">
+              <span className="text-gray-400">{gameState.drawPile.length}</span>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <div className="text-sm font-medium text-gray-500 mb-2">Discard Pile</div>
+            {gameState.discardPile.length > 0 ? (
+              <Card card={gameState.discardPile[gameState.discardPile.length - 1]} />
+            ) : (
+              <div className="bg-gray-100 w-24 h-36 rounded-xl shadow-inner flex items-center justify-center border-2 border-dashed border-gray-300">
+                <span className="text-gray-400">Empty</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold mb-4">Your Hand</h2>
+          <PlayerHand
+            cards={currentPlayerHand}
+            selectedCards={selectedCards}
+            onCardClick={handleCardClick}
+          />
+        </div>
       </div>
     </div>
   );
