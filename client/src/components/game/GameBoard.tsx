@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type Card as CardType, type GameState } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -12,18 +12,41 @@ interface GameBoardProps {
   onUpdateGame: (newState: GameState) => void;
 }
 
-const suits = ["hearts", "diamonds", "clubs", "spades"];
-const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-
-
 export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
   const { toast } = useToast();
   const [selectedCards, setSelectedCards] = useState<CardType[]>([]);
   const [roundEnded, setRoundEnded] = useState(false);
   const [needsToDraw, setNeedsToDraw] = useState(false);
+  const [lastDiscarded, setLastDiscarded] = useState<CardType[]>([]);
 
   const currentPlayer = gameState.players[gameState.currentTurn];
   const currentPlayerHand = currentPlayer.hand;
+
+  // Show turn notification
+  useEffect(() => {
+    toast({
+      title: `${currentPlayer.name}'s Turn`,
+      duration: 3000
+    });
+  }, [gameState.currentTurn]);
+
+  // Check for valid combinations in hand
+  const hasValidSequence = currentPlayerHand.length >= 3 && 
+    currentPlayerHand.some((card1, i) => 
+      currentPlayerHand.some((card2, j) => 
+        currentPlayerHand.some((card3, k) => 
+          i !== j && j !== k && i !== k && 
+          validateSequence([card1, card2, card3])
+        )
+      )
+    );
+
+  const hasValidPair = currentPlayerHand.length >= 2 && 
+    currentPlayerHand.some((card1, i) => 
+      currentPlayerHand.some((card2, j) => 
+        i !== j && validatePair([card1, card2])
+      )
+    );
 
   const handleCardClick = (card: CardType) => {
     if (roundEnded || needsToDraw) return;
@@ -62,6 +85,8 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
       !selectedCards.some(sc => sc.suit === card.suit && sc.value === card.value)
     );
 
+    // Store the previously discarded card before adding new ones
+    setLastDiscarded([...selectedCards]);
     newState.discardPile.push(...selectedCards);
     setSelectedCards([]);
     setNeedsToDraw(true);
@@ -85,7 +110,10 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
     }
 
     if (fromDiscard) {
-      const card = newState.discardPile.pop();
+      // Remove the last discarded cards from the discard pile
+      lastDiscarded.forEach(() => newState.discardPile.pop());
+      // Get the top card that was there before the last discard
+      const card = newState.discardPile[newState.discardPile.length - 1];
       if (card) currentPlayer.hand.push(card);
     } else {
       const card = newState.drawPile.pop();
@@ -93,6 +121,7 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
     }
 
     setNeedsToDraw(false);
+    setLastDiscarded([]);
     newState.currentTurn = (newState.currentTurn + 1) % newState.players.length;
     onUpdateGame(newState);
   };
@@ -110,19 +139,31 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
     }
 
     const newState = { ...gameState };
-    const lowestScore = Math.min(...newState.players.map(p => 
-      calculateHandScore(p.hand)
-    ));
+    const showingPlayer = newState.players[newState.currentTurn];
+    const otherPlayers = newState.players.filter((_, i) => i !== newState.currentTurn);
+
+    const lowestScore = Math.min(...otherPlayers.map(p => calculateHandScore(p.hand)));
 
     if (handScore > lowestScore) {
-      currentPlayer.score += 30;
+      // Penalize the showing player if someone has a lower score
+      showingPlayer.score += 30;
       toast({ 
         title: "Penalty!",
         description: "Someone had a lower score - 30 points added"
       });
+    } else {
+      // Add other players' scores to their totals
+      otherPlayers.forEach(player => {
+        const playerScore = calculateHandScore(player.hand);
+        player.score += playerScore;
+        toast({
+          title: `${player.name}'s Score`,
+          description: `Added ${playerScore} points`
+        });
+      });
     }
 
-    if (currentPlayer.score >= 100) {
+    if (showingPlayer.score >= 100) {
       newState.gameOver = true;
     }
 
@@ -147,6 +188,7 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
     setRoundEnded(false);
     setNeedsToDraw(false);
     setSelectedCards([]);
+    setLastDiscarded([]);
 
     onUpdateGame(newState);
   };
@@ -238,6 +280,8 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
             cards={currentPlayerHand}
             selectedCards={selectedCards}
             onCardClick={handleCardClick}
+            hasValidSequence={hasValidSequence}
+            hasValidPair={hasValidPair}
           />
         </div>
       </div>
