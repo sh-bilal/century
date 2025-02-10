@@ -5,10 +5,9 @@ interface CardProps {
   card: CardType;
   selected?: boolean;
   onClick?: () => void;
-  highlight?: boolean;
 }
 
-export function Card({ card, selected, onClick, highlight }: CardProps) {
+export function Card({ card, selected, onClick }: CardProps) {
   const { suit, value } = card;
 
   const suitSymbol = {
@@ -35,7 +34,6 @@ export function Card({ card, selected, onClick, highlight }: CardProps) {
         "flex flex-col items-center justify-between p-3 relative hover:scale-105",
         "border-2",
         selected ? "border-primary ring-2 ring-primary/50" : "border-gray-200",
-        highlight && "shadow-lg shadow-primary/20 hover:shadow-primary/30",
         onClick && "hover:border-primary/50"
       )}
     >
