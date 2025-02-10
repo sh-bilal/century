@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type Card as CardType, type GameState } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -12,10 +12,6 @@ interface GameBoardProps {
   onUpdateGame: (newState: GameState) => void;
 }
 
-const suits = ["hearts", "diamonds", "clubs", "spades"];
-const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-
-
 export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
   const { toast } = useToast();
   const [selectedCards, setSelectedCards] = useState<CardType[]>([]);
@@ -24,6 +20,14 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
 
   const currentPlayer = gameState.players[gameState.currentTurn];
   const currentPlayerHand = currentPlayer.hand;
+
+  // Show turn notification
+  useEffect(() => {
+    toast({
+      title: `${currentPlayer.name}'s Turn`,
+      duration: 3000,
+    });
+  }, [gameState.currentTurn, currentPlayer.name]);
 
   const handleCardClick = (card: CardType) => {
     if (roundEnded || needsToDraw) return;
@@ -62,6 +66,7 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
       !selectedCards.some(sc => sc.suit === card.suit && sc.value === card.value)
     );
 
+    // Add cards to the top of the discard pile
     newState.discardPile.push(...selectedCards);
     setSelectedCards([]);
     setNeedsToDraw(true);
@@ -85,8 +90,19 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
     }
 
     if (fromDiscard) {
-      const card = newState.discardPile.pop();
-      if (card) currentPlayer.hand.push(card);
+      // Take the card below the top card (if it exists)
+      if (newState.discardPile.length >= 2) {
+        const topCard = newState.discardPile.pop(); // Remove top card
+        const cardToTake = newState.discardPile.pop(); // Take the card below
+        if (topCard) newState.discardPile.push(topCard); // Put top card back
+        if (cardToTake) currentPlayer.hand.push(cardToTake);
+      } else {
+        toast({
+          title: "Cannot draw from discard",
+          description: "No card available below the top card"
+        });
+        return;
+      }
     } else {
       const card = newState.drawPile.pop();
       if (card) currentPlayer.hand.push(card);
@@ -94,6 +110,7 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
 
     setNeedsToDraw(false);
     newState.currentTurn = (newState.currentTurn + 1) % newState.players.length;
+
     onUpdateGame(newState);
   };
 
@@ -110,20 +127,45 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
     }
 
     const newState = { ...gameState };
-    const lowestScore = Math.min(...newState.players.map(p => 
-      calculateHandScore(p.hand)
-    ));
+    const showingPlayer = newState.players[newState.currentTurn];
 
-    if (handScore > lowestScore) {
-      currentPlayer.score += 30;
+    // Calculate all player scores
+    const playerScores = newState.players.map(player => ({
+      player,
+      handScore: calculateHandScore(player.hand)
+    }));
+
+    // Find if anyone has a lower score
+    const lowestScore = Math.min(...playerScores.map(p => p.handScore));
+    const hasLowerScore = lowestScore < handScore;
+
+    if (hasLowerScore) {
+      // Penalty for incorrect show
+      showingPlayer.score += 30;
       toast({ 
         title: "Penalty!",
         description: "Someone had a lower score - 30 points added"
       });
+    } else {
+      // Add hand scores to all other players
+      playerScores.forEach(({ player, handScore }) => {
+        if (player.id !== showingPlayer.id) {
+          player.score += handScore;
+          toast({
+            title: `${player.name}'s Score`,
+            description: `Added ${handScore} points`
+          });
+        }
+      });
     }
 
-    if (currentPlayer.score >= 100) {
+    // Check for game over
+    if (showingPlayer.score >= 100) {
       newState.gameOver = true;
+      toast({
+        title: "Game Over!",
+        description: `${showingPlayer.name} has exceeded 100 points`
+      });
     }
 
     setRoundEnded(true);
@@ -132,7 +174,6 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
 
   const handleResetRound = () => {
     const newState = { ...gameState };
-    // Reset hands and create a new deck
     const deck = createDeck();
 
     newState.players.forEach(player => {
@@ -174,7 +215,7 @@ export function GameBoard({ gameState, onUpdateGame }: GameBoardProps) {
                 </Button>
                 <Button
                   onClick={() => handleDraw(true)}
-                  disabled={gameState.discardPile.length === 0}
+                  disabled={gameState.discardPile.length < 2}
                   variant="outline"
                   className="border-primary text-primary hover:bg-primary/10"
                 >
