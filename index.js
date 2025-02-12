@@ -93,7 +93,7 @@ var __filename = fileURLToPath(import.meta.url);
 var __dirname = dirname(__filename);
 var vite_config_default = defineConfig({
   base: "/century/",
-  // 👈 Ensure this matches your repo name
+  // <-- Add this line (must match the repo name)
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
   resolve: {
     alias: {
@@ -103,8 +103,7 @@ var vite_config_default = defineConfig({
   },
   root: path.resolve(__dirname, "client"),
   build: {
-    outDir: path.resolve(__dirname, "dist"),
-    // GitHub Pages expects 'dist'
+    outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true
   }
 });
