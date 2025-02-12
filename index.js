@@ -85,16 +85,14 @@ import { createServer as createViteServer, createLogger } from "vite";
 // vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
 import path, { dirname } from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { fileURLToPath } from "url";
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = dirname(__filename);
 var vite_config_default = defineConfig({
   base: "/century/",
-  // 👈 Ensure this matches your repo name
-  plugins: [react(), runtimeErrorOverlay(), themePlugin()],
+  // 👈 Important for GitHub Pages
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
@@ -105,7 +103,10 @@ var vite_config_default = defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist"),
     // GitHub Pages expects 'dist'
-    emptyOutDir: true
+    emptyOutDir: true,
+    rollupOptions: {
+      input: path.resolve(__dirname, "client", "index.html")
+    }
   }
 });
 
