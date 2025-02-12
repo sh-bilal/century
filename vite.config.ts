@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export default defineConfig({
-  base: "/century/", // 👈 Ensure this matches your repo name
+  base: "/century/",  // <-- Add this line (must match the repo name)
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
   resolve: {
     alias: {
@@ -19,7 +19,7 @@ export default defineConfig({
   },
   root: path.resolve(__dirname, "client"),
   build: {
-    outDir: path.resolve(__dirname, "dist"), // GitHub Pages expects 'dist'
+    outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
   },
 });
