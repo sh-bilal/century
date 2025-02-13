@@ -93,20 +93,18 @@ var __filename = fileURLToPath(import.meta.url);
 var __dirname = dirname(__filename);
 var vite_config_default = defineConfig({
   base: "/century/",
-  // Make sure this matches your GitHub repo name
+  // 👈 Ensure this matches your repo name
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
-      // ✅ Fixed alias
+      "@": path.resolve(__dirname, "client", "src"),
       "@shared": path.resolve(__dirname, "shared")
     }
   },
-  root: __dirname,
-  // ✅ Set root to project root
+  root: path.resolve(__dirname, "client"),
   build: {
     outDir: path.resolve(__dirname, "dist"),
-    // ✅ Ensure build output is correct
+    // GitHub Pages expects 'dist'
     emptyOutDir: true
   }
 });
